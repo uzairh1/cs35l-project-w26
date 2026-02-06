@@ -1,8 +1,6 @@
 # cs35l-project-w26
-## Week1
+## Week4
 ### Backend D
-<<<<<<< HEAD
-<<<<<<< HEAD
 #### Completed Tasks
 - ✅ Add `Flask-SQLAlchemy`, `Flask-Migrate`, `supabase` dependencies to `requirements.txt`
 - ✅ Create `models/` folder
@@ -16,19 +14,3 @@
 - Migrations are intended to run against **Supabase Postgres**, not a local DB. Make sure `DATABASE_URL` is set in your `.env` file and matches this format: *postgresql://postgres:&lt;password&gt;@db.&lt;project-ref&gt;.supabase.co:5432/postgres*
 - Run `flask db migrate -m "Describe your schema change"` **only if you changed schema**.
 - **Caution:** `flask db upgrade` applies migrations to the DB in `DADABASE_URL`. If it points to Supabase Postgres, `flask db upgrade` will update the remote DB, so double-check before running it.
-=======
-[*] Add `Flask-SQLAlchemy` and `Flask-Migrate` dependencies to `requirements.txt`
-[*] Create `models/` folder
-[*] Initialize SQLAlchemy with the Flask app (`db.init_app(app)`)
-[*] Create 1 test model
-[*] Generate the first migration (`flask db init` & `flask db migrate`)
-[ ] Apply the migration to the database (`flask db upgrade`) => requires DATABASE_URL
->>>>>>> cc192b1 (Backend D: update README.md)
-=======
-- [*] Add `Flask-SQLAlchemy` and `Flask-Migrate` dependencies to `requirements.txt`
-- [*] Create `models/` folder
-- [*] Initialize SQLAlchemy with the Flask app (`db.init_app(app)`)
-- [*] Create 1 test model
-- [*] Generate the first migration (`flask db init` & `flask db migrate`)
-- [ ] Apply the migration to the database (`flask db upgrade`) => requires DATABASE_URL
->>>>>>> ba359c4 (Backend D: update README.md)
