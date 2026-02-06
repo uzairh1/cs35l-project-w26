@@ -2,6 +2,7 @@
 ## Week1
 ### Backend D
 <<<<<<< HEAD
+<<<<<<< HEAD
 #### Completed Tasks
 - ✅ Add `Flask-SQLAlchemy`, `Flask-Migrate`, `supabase` dependencies to `requirements.txt`
 - ✅ Create `models/` folder
@@ -23,3 +24,11 @@
 [*] Generate the first migration (`flask db init` & `flask db migrate`)
 [ ] Apply the migration to the database (`flask db upgrade`) => requires DATABASE_URL
 >>>>>>> cc192b1 (Backend D: update README.md)
+=======
+- [*] Add `Flask-SQLAlchemy` and `Flask-Migrate` dependencies to `requirements.txt`
+- [*] Create `models/` folder
+- [*] Initialize SQLAlchemy with the Flask app (`db.init_app(app)`)
+- [*] Create 1 test model
+- [*] Generate the first migration (`flask db init` & `flask db migrate`)
+- [ ] Apply the migration to the database (`flask db upgrade`) => requires DATABASE_URL
+>>>>>>> ba359c4 (Backend D: update README.md)
