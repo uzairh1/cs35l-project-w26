@@ -1,9 +1,16 @@
 # cs35l-project-w26
 ## Week1
 ### Backend D
-- ✅ Add `Flask-SQLAlchemy` and `Flask-Migrate` dependencies to `requirements.txt`
+#### Completed Tasks
+- ✅ Add `Flask-SQLAlchemy`, `Flask-Migrate`, `supabase` dependencies to `requirements.txt`
 - ✅ Create `models/` folder
-- ✅ Initialize SQLAlchemy with the Flask app (`db.init_app(app)`)
 - ✅ Create 1 test model
-- ✅ Generate the first migration (`flask db init` & `flask db migrate`)
-- ❌ Apply the migration to the database (`flask db upgrade`) => requires DATABASE_URL
+- ✅ Initialize SQLAlchemy with the Flask app (`db.init_app(app)`)
+- ✅ Initialize migration (`flask db init`)
+- ✅ Add `instance/` to `.gitignore`
+- ✅ Create `.env.example` to clarify the expected `DATABASE_URL` format
+
+#### Important: Read this before running migrations
+- Migrations are intended to run against **Supabase Postgres**, not a local DB. Make sure `DATABASE_URL` is set in your `.env` file and matches this format: *postgresql://postgres:&lt;password&gt;@db.&lt;project-ref&gt;.supabase.co:5432/postgres*
+- Run `flask db migrate -m "Describe your schema change"` **only if you changed schema**.
+- **Caution:** `flask db upgrade` applies migrations to the DB in `DADABASE_URL`. If it points to Supabase Postgres, `flask db upgrade` will update the remote DB, so double-check before running it.
