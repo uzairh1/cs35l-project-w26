@@ -13,6 +13,9 @@ class Config:
             "DATABASE_URL is not set. Set it to your Supabase Postgres connection string, e.g. " \
             "postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres"
         )
+<<<<<<< HEAD
     
     UPLOADS_FOLDER = os.path.join(os.getcwd(), "uploads")
     MAX_CONTENT_LENGTH = 10 * 1024 * 1024 # 10 MB
+=======
+>>>>>>> 0b9ee22 (Backend D: set up SQLAlchemy and migrations)
