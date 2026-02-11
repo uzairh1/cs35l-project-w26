@@ -1,20 +1,23 @@
 from flask import Flask
 from dotenv import load_dotenv
 import os
+from models.base import db
+from flask_migrate import Migrate
+from app.routes import api, auth
+from app.config import Config
 
 def create_app():
     load_dotenv()
 
     app = Flask(__name__)
-    app.config.from_object("app.config.Config")
+    app.config.from_object(Config)
 
-    from models.base import db
-    from flask_migrate import Migrate
+    os.makedirs(app.config["UPLOADS_FOLDER"], exist_ok=True)
+
     db.init_app(app)
     Migrate(app, db)
 
-    from app.routes import api
-    from app.auth import auth
+    
     app.register_blueprint(api)
     app.register_blueprint(auth)
 
