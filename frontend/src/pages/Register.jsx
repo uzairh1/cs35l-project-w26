@@ -1,31 +1,41 @@
 import { useState } from "react";
-import { loginUser } from "../services/api";
+import { registerUser } from "../services/api";
 
-export default function Login() {
+export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  // regex for ucla email validation
+  const uclaRegex = /^[^\s@]+@(ucla\.edu|g\.ucla\.edu)$/;
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    setSuccess("");
+
+    if (!uclaRegex.test(email)) {
+      setError("Must use UCLA email (@ucla.edu or @g.ucla.edu)");
+      return;
+    }
 
     try {
-      const response = await loginUser({ email, password });
+      const response = await registerUser({ email, password });
 
       if (response.error) {
         setError(response.error);
       } else {
-        console.log("Logged in!", response);
+        setSuccess("Registration successful!");
       }
     } catch {
-      setError("Login failed");
+      setError("Something went wrong");
     }
   }
 
   return (
     <div>
-      <h1>Login</h1>
+      <h1>Register</h1>
 
       <form onSubmit={handleSubmit}>
         <input
@@ -42,10 +52,11 @@ export default function Login() {
           onChange={(e) => setPassword(e.target.value)}
         />
 
-        <button type="submit">Login</button>
+        <button type="submit">Register</button>
       </form>
 
       {error && <p>{error}</p>}
+      {success && <p>{success}</p>}
     </div>
   );
 }
