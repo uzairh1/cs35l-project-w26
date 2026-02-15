@@ -3,7 +3,8 @@ from dotenv import load_dotenv
 import os
 from models.base import db
 from flask_migrate import Migrate
-from app.routes import api, auth
+from app.routes import api
+from app.auth import auth
 from app.config import Config
 
 def create_app():
