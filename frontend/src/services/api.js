@@ -35,3 +35,27 @@ export async function loginUser(data) {
 
   return res.json();
 }
+
+export async function fetchSyllabi(filters = {}) {
+  try {
+    // turns { professor: "Eggert", year: "2026" } into "professor=Eggert&year=2026"
+    // skips empty fields if we clean the object first
+    const cleanFilters = Object.fromEntries(
+      Object.entries(filters).filter(([_, value]) => value !== "")
+    );
+    
+    const queryString = new URLSearchParams(cleanFilters).toString();
+    const endpoint = queryString ? `${API_URL}/api/syllabi?${queryString}` : `${API_URL}/api/syllabi`;
+
+    const response = await fetch(endpoint);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Couldn't fetch syllabi");
+    }
+
+    return data;
+  } catch (err) {
+    return { error: err.message };
+  }
+}

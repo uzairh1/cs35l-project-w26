@@ -1,42 +1,89 @@
-#root {
-  max-width: 1280px;
+/* --- BROWSE PAGE STYLES --- */
+
+.browse-container {
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  padding: 20px;
+  text-align: left; 
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.browse-container h2 {
+  color: #2774AE; 
+  margin-bottom: 20px;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.filters-section {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+  background-color: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+.filters-section input, 
+.filters-section select {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  flex: 1; 
+  min-width: 150px;
+  font-size: 1rem;
 }
 
-.card {
-  padding: 2em;
+.syllabi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 25px;
 }
 
-.read-the-docs {
-  color: #888;
+.syllabus-card {
+  background-color: white;
+  border: 1px solid #eaeaea;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  color: #333;
+}
+
+.syllabus-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+}
+
+.syllabus-card h3 {
+  margin-top: 0;
+  color: #2774AE; 
+  border-bottom: 2px solid #FFD100; 
+  padding-bottom: 10px;
+}
+
+.syllabus-card p {
+  margin: 8px 0;
+  line-height: 1.4;
+}
+
+.syllabus-card button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 15px;
+  background-color: #FFD100; 
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.syllabus-card button:hover {
+  background-color: #e6bc00;
+}
+
+.syllabus-card button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
 }
