@@ -2,6 +2,9 @@ from flask import Flask
 from dotenv import load_dotenv
 import os
 from models.base import db
+from models.user import User
+from models.course import Course
+from models.syllabus import Syllabus
 from flask_migrate import Migrate
 from app.routes import api
 from app.auth import auth
