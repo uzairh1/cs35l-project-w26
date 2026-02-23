@@ -2,16 +2,117 @@ from flask import Blueprint, request, jsonify
 from app.file_utils import save_pdf
 from app.jwt_utils import jwt_required
 from sqlalchemy.orm import joinedload
+from sqlalchemy import func
 from models.syllabus import Syllabus
+from models.course import Course
 from models.base import db
-
 
 
 api = Blueprint("api", __name__)
 
+VALID_QUARTERS = {"Fall", "Winter", "Spring", "Summer"}
+VALID_SORT_OPTIONS = {"newest", "oldest", "downloads_desc", "downloads_asc"}
+
+
 @api.route("/api/health")
 def health():
     return {"status": "ok"}
+
+
+@api.route("/api/syllabi", methods=["GET"])
+def get_syllabi():
+    # --- Read query params ---
+    professor_last_name = request.args.get("professor_last_name", "").strip()
+    department         = request.args.get("department", "").strip()
+    course_number      = request.args.get("course_number", "").strip()
+    quarter            = request.args.get("quarter", "").strip()
+    year               = request.args.get("year", "").strip()
+    sort               = request.args.get("sort", "newest").strip()
+
+    # --- Validate params ---
+    if quarter and quarter not in VALID_QUARTERS:
+        return jsonify({
+            "error": f"Invalid quarter '{quarter}'. Must be one of: {', '.join(sorted(VALID_QUARTERS))}"
+        }), 400
+
+    if year:
+        if not year.isdigit() or not (1900 <= int(year) <= 2100):
+            return jsonify({"error": "year must be a valid 4-digit number (e.g. 2024)"}), 400
+        year = int(year)
+
+    if sort not in VALID_SORT_OPTIONS:
+        return jsonify({
+            "error": f"Invalid sort '{sort}'. Must be one of: {', '.join(sorted(VALID_SORT_OPTIONS))}"
+        }), 400
+
+    # --- Build query with JOIN on Course ---
+    query = (
+        Syllabus.query
+        .join(Syllabus.course)
+        .options(joinedload(Syllabus.course), joinedload(Syllabus.uploader))
+    )
+
+    # --- Apply filters (all case-insensitive, ORM only — no raw SQL) ---
+    if professor_last_name:
+        query = query.filter(
+            func.lower(Course.professor_last_name).contains(professor_last_name.lower())
+        )
+
+    if department:
+        query = query.filter(
+            func.lower(Course.department).contains(department.lower())
+        )
+
+    if course_number:
+        query = query.filter(
+            func.lower(Course.course_number).contains(course_number.lower())
+        )
+
+    if quarter:
+        query = query.filter(
+            func.lower(Syllabus.quarter) == quarter.lower()
+        )
+
+    if year:
+        query = query.filter(Syllabus.year == year)
+
+    # --- Apply sorting ---
+    if sort == "newest":
+        query = query.order_by(Syllabus.created_at.desc())
+    elif sort == "oldest":
+        query = query.order_by(Syllabus.created_at.asc())
+    elif sort == "downloads_desc":
+        query = query.order_by(Syllabus.download_count.desc())
+    elif sort == "downloads_asc":
+        query = query.order_by(Syllabus.download_count.asc())
+
+    syllabi = query.all()
+
+    # --- Serialize results ---
+    results = []
+    for s in syllabi:
+        results.append({
+            "id": s.id,
+            "quarter": s.quarter,
+            "year": s.year,
+            "download_count": s.download_count,
+            "favorite_count": s.favorite_count,
+            "created_at": s.created_at.isoformat(),
+            "course": {
+                "id": s.course_id,
+                "department": s.course.department,
+                "course_number": s.course.course_number,
+                "course_title": s.course.course_title,
+                "professor_first_name": s.course.professor_first_name,
+                "professor_last_name": s.course.professor_last_name,
+            },
+            "uploader": None if not s.uploader else {
+                "id": s.uploader_id,
+                "email": s.uploader.email,
+            }
+        })
+
+    return jsonify(results), 200
 
 
 @api.route("/api/syllabi/<int:syllabus_id>", methods=["GET"])
