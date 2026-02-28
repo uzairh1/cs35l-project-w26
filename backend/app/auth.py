@@ -1,6 +1,6 @@
 import jwt
 from flask import Blueprint, request, jsonify, current_app
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app import db
@@ -30,7 +30,7 @@ def register():
     hashed_password = generate_password_hash(password)
 
     # Create and save the new user
-    new_user = User(email=email, password=hashed_password) 
+    new_user = User(email=email, password_hash=hashed_password)
     db.session.add(new_user)
     db.session.commit()
 
@@ -50,17 +50,17 @@ def login():
     user = User.query.filter_by(email=email).first()
 
     # Verify user exists and password is correct
-    if not user or not check_password_hash(user.password, password):
+    if not user or not check_password_hash(user.password_hash, password):
         return jsonify({"error": "Invalid credentials"}), 401
-    
-    # Generate JWT Token
-    now = datetime.utcnow()
+
+    # Generate JWT token with timezone-aware UTC timestamps.
+    now = datetime.now(timezone.utc)
     expires = now + timedelta(hours=current_app.config.get("JWT_ACCESS_TOKEN_EXPIRES_HOURS", 1))
-    
+
     payload = {
-        "sub": user.id,  
-        "iat": now,
-        "exp": expires,
+        "sub": str(user.id),
+        "iat": int(now.timestamp()),
+        "exp": int(expires.timestamp()),
     }
 
     token = jwt.encode(

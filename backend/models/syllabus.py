@@ -8,6 +8,8 @@ class Syllabus(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     file_path = db.Column(db.String, nullable=False)
+    file_hash = db.Column(db.String(length=64), nullable=True, index=True)
+
     quarter = db.Column(db.String, nullable=False)
     year = db.Column(db.Integer, nullable=False)
 
