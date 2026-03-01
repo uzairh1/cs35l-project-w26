@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app, send_file
 from app.file_utils import save_pdf
 from app.jwt_utils import jwt_required
 from sqlalchemy.orm import joinedload
@@ -9,6 +9,7 @@ from models.course import Course
 from models.grades import Grade
 from models.base import db
 import hashlib
+import os
 
 
 api = Blueprint("api", __name__)
@@ -24,7 +25,6 @@ def health():
 
 @api.route("/api/syllabi", methods=["GET"])
 def get_syllabi():
-    # --- Read query params ---
     professor_last_name = request.args.get("professor_last_name", "").strip()
     department         = request.args.get("department", "").strip()
     course_number      = request.args.get("course_number", "").strip()
@@ -32,7 +32,6 @@ def get_syllabi():
     year               = request.args.get("year", "").strip()
     sort               = request.args.get("sort", "newest").strip()
 
-    # --- Validate params ---
     if quarter and quarter not in VALID_QUARTERS:
         return jsonify({
             "error": f"Invalid quarter '{quarter}'. Must be one of: {', '.join(sorted(VALID_QUARTERS))}"
@@ -48,50 +47,46 @@ def get_syllabi():
             "error": f"Invalid sort '{sort}'. Must be one of: {', '.join(sorted(VALID_SORT_OPTIONS))}"
         }), 400
 
-    # --- Build query with JOIN on Course ---
-    query = (
-        Syllabus.query
-        .join(Syllabus.course)
-        .options(joinedload(Syllabus.course), joinedload(Syllabus.uploader))
-    )
-
-    # --- Apply filters (all case-insensitive, ORM only — no raw SQL) ---
-    if professor_last_name:
-        query = query.filter(
-            func.lower(Course.professor_last_name).contains(professor_last_name.lower())
+    try:
+        query = (
+            Syllabus.query
+            .join(Syllabus.course)
+            .options(joinedload(Syllabus.course), joinedload(Syllabus.uploader))
         )
 
-    if department:
-        query = query.filter(
-            func.lower(Course.department).contains(department.lower())
-        )
+        if professor_last_name:
+            query = query.filter(
+                func.lower(Course.professor_last_name).contains(professor_last_name.lower())
+            )
+        if department:
+            query = query.filter(
+                func.lower(Course.department).contains(department.lower())
+            )
+        if course_number:
+            query = query.filter(
+                func.lower(Course.course_number).contains(course_number.lower())
+            )
+        if quarter:
+            query = query.filter(
+                func.lower(Syllabus.quarter) == quarter.lower()
+            )
+        if year:
+            query = query.filter(Syllabus.year == year)
 
-    if course_number:
-        query = query.filter(
-            func.lower(Course.course_number).contains(course_number.lower())
-        )
+        if sort == "newest":
+            query = query.order_by(Syllabus.created_at.desc())
+        elif sort == "oldest":
+            query = query.order_by(Syllabus.created_at.asc())
+        elif sort == "downloads_desc":
+            query = query.order_by(Syllabus.download_count.desc())
+        elif sort == "downloads_asc":
+            query = query.order_by(Syllabus.download_count.asc())
 
-    if quarter:
-        query = query.filter(
-            func.lower(Syllabus.quarter) == quarter.lower()
-        )
+        syllabi = query.all()
 
-    if year:
-        query = query.filter(Syllabus.year == year)
+    except Exception:
+        return jsonify({"error": "Failed to retrieve syllabi"}), 500
 
-    # --- Apply sorting ---
-    if sort == "newest":
-        query = query.order_by(Syllabus.created_at.desc())
-    elif sort == "oldest":
-        query = query.order_by(Syllabus.created_at.asc())
-    elif sort == "downloads_desc":
-        query = query.order_by(Syllabus.download_count.desc())
-    elif sort == "downloads_asc":
-        query = query.order_by(Syllabus.download_count.asc())
-
-    syllabi = query.all()
-
-    # --- Serialize results ---
     results = []
     for s in syllabi:
         results.append({
@@ -129,46 +124,70 @@ def get_syllabus(syllabus_id):
 
     if not syllabus:
         return jsonify({"error": "Syllabus not found"}), 404
-    
-    response = {
-       "id": syllabus.id,
-       "quarter": syllabus.quarter,
-       "year": syllabus.year,
-       "download_count": syllabus.download_count,
-       "favorite_count": syllabus.favorite_count,
-       "created_at": syllabus.created_at.isoformat(),
 
-       "course": {
-        "id": syllabus.course_id,
-        "department": syllabus.course.department,
-        "course_number": syllabus.course.course_number,
-        "course_title": syllabus.course.course_title,
-        "professor_first_name": syllabus.course.professor_first_name,
-        "professor_last_name": syllabus.course.professor_last_name,
-       },
+    response = {
+        "id": syllabus.id,
+        "quarter": syllabus.quarter,
+        "year": syllabus.year,
+        "download_count": syllabus.download_count,
+        "favorite_count": syllabus.favorite_count,
+        "created_at": syllabus.created_at.isoformat(),
+        "course": {
+            "id": syllabus.course_id,
+            "department": syllabus.course.department,
+            "course_number": syllabus.course.course_number,
+            "course_title": syllabus.course.course_title,
+            "professor_first_name": syllabus.course.professor_first_name,
+            "professor_last_name": syllabus.course.professor_last_name,
+        },
         "uploader": None if not syllabus.uploader else {
             "id": syllabus.uploader_id,
             "email": syllabus.uploader.email
         }
     }
-    
+
     return jsonify(response), 200
 
-@api.route("/api/protected") # Just for testing auth, can remove later
-@jwt_required
-def protected():
-    user = getattr(request, "user", None)
-    return jsonify({"message": f"You are logged in as {user}"})
+
+@api.route("/api/syllabi/<int:syllabus_id>/download", methods=["GET"])
+def download_syllabus(syllabus_id):
+    # 1. Check syllabus exists
+    syllabus = Syllabus.query.filter_by(id=syllabus_id).first()
+    if not syllabus:
+        return jsonify({"error": "Syllabus not found"}), 404
+
+    # 2. Build the full path and check the file actually exists on disk
+    upload_folder = current_app.config["UPLOADS_FOLDER"]
+    file_path = os.path.join(upload_folder, syllabus.file_path)
+
+    if not os.path.exists(file_path):
+        return jsonify({"error": "File not found on server"}), 404
+
+    # 3. Increment download count and commit BEFORE sending,
+    #    but only persist if no exception occurs
+    try:
+        syllabus.download_count += 1
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "Failed to update download count"}), 500
+
+    # 4. Serve the file
+    return send_file(
+        file_path,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"syllabus_{syllabus_id}.pdf"
+    )
+
 
 @api.route("/api/upload", methods=["POST"])
-
 @jwt_required
 def upload_pdf():
     if "file" not in request.files:
         return jsonify({"error": "No file part"}), 400
-    
-    file = request.files["file"]
 
+    file = request.files["file"]
     course_id = request.form.get("course_id")
     quarter = request.form.get("quarter")
     year = request.form.get("year")
@@ -176,7 +195,6 @@ def upload_pdf():
     if not course_id or not quarter or not year:
         return jsonify({"error": "Missing required fields"}), 400
 
-    # Validate numeric fields
     try:
         course_id = int(course_id)
     except (ValueError, TypeError):
@@ -186,22 +204,24 @@ def upload_pdf():
         year = int(year)
     except (ValueError, TypeError):
         return jsonify({"error": "year must be an integer"}), 400
-    
+
     course = Course.query.get(course_id)
     if not course:
         return jsonify({"error": "Course not found"}), 400
-    
+
     file_bytes = file.read()
     file_hash = hashlib.sha256(file_bytes).hexdigest()
     file.seek(0)
 
-    dup = Syllabus.query.filter_by(file_hash=file_hash, course_id=course_id, quarter=quarter, year=year).first()
+    dup = Syllabus.query.filter_by(
+        file_hash=file_hash, course_id=course_id, quarter=quarter, year=year
+    ).first()
     if dup:
         return jsonify({
             "error": "Duplicate upload detected",
             "message": "A syllabus with identical content already exists",
             "existing_syllabus_id": dup.id
-            }), 409
+        }), 409
 
     try:
         filename = save_pdf(file)
@@ -209,15 +229,14 @@ def upload_pdf():
         return jsonify({"error": str(e)}), 400
     except Exception:
         return jsonify({"error": "Upload failed"}), 500
-    
+
     user_id = getattr(request, "user", None)
 
     from models.user import User
     user = User.query.get(user_id)
-
     if not user:
         return jsonify({"error": "User not found"}), 401
-    
+
     new_syllabus = Syllabus(
         file_path=filename,
         file_hash=file_hash,
@@ -227,15 +246,21 @@ def upload_pdf():
         uploader_id=user.id
     )
 
-    db.session.add(new_syllabus)
-    db.session.commit()
+    # Wrapped with rollback safety
+    try:
+        db.session.add(new_syllabus)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "Database error during upload"}), 500
 
-    return jsonify(
-        {"message": "File uploaded successfully",
-        "original_filename": file.filename
-        , "stored_filename": filename,
-        "syllabus_id": new_syllabus.id}
-        ), 201
+    return jsonify({
+        "message": "File uploaded successfully",
+        "original_filename": file.filename,
+        "stored_filename": filename,
+        "syllabus_id": new_syllabus.id
+    }), 201
+
 
 @api.route("/api/grades", methods=["POST"])
 @jwt_required
@@ -255,7 +280,6 @@ def submit_grade():
     if not (0.0 <= grade_val <= 4.0):
         return jsonify({"error": "grade must be between 0.0 and 4.0"}), 400
 
-    # validate course exists
     try:
         course_id = int(course_id)
     except (ValueError, TypeError):
