@@ -118,7 +118,7 @@ def course_grade_distribution(course_id):
     else:
         percentages = {label: 0 for label in buckets}
 
-    # 6️⃣ Return structured response
+    # Return structured response
     return jsonify({
         "course_id": course_id,
         "course": {
