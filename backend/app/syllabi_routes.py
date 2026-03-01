@@ -8,6 +8,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 
+from backend.models import syllabus
 from models.syllabus import Syllabus
 from models.course import Course
 from models.user import User
@@ -267,3 +268,30 @@ def get_my_favorites():
 
     syllabi = [serialize_syllabus(f.syllabus) for f in favs if f.syllabus is not None]
     return jsonify(syllabi), 200
+
+@syllabi_api.route("/api/syllabi/<int:syllabus_id>", methods=["DELETE"])
+@jwt_required
+def delete_syllabus(syllabus_id):
+    user_id = getattr(request, "user", None)
+    if not user_id:
+        return jsonify({"error": "Unauthenticated"}), 401
+
+    syllabus = Syllabus.query.get(syllabus_id)
+    if not syllabus:
+        return jsonify({"error": "Syllabus not found"}), 404
+
+    # Ownership check
+    if syllabus.uploader_id != user_id:
+        return jsonify({"error": "You are not authorized to delete this syllabus"}), 403
+
+    try:
+        file_path = os.path.join(current_app.config["UPLOADS_FOLDER"], syllabus.file_path)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        db.session.delete(syllabus)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "Failed to delete syllabus"}), 500
+
+    return jsonify({"message": "Syllabus deleted successfully"}), 200
