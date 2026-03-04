@@ -45,7 +45,7 @@ export async function fetchSyllabi(filters = {}) {
     );
     
     const queryString = new URLSearchParams(cleanFilters).toString();
-    const endpoint = queryString ? `${API_URL}/api/syllabi?${queryString}` : `${API_URL}/api/syllabi`;
+    const endpoint = queryString ? `${API_URL}/api/syllabi?${queryString}` : `${API_URL}/api/syllabi`; // Yo frontend -- delete the first api from both parts in this line, should work then!
 
     const response = await fetch(endpoint);
     const data = await response.json();
