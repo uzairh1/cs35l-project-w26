@@ -1,6 +1,7 @@
 import jwt
 from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime, timedelta, timezone
+from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app import db
@@ -17,6 +18,15 @@ def register():
     if not email or not password:
         return jsonify({"error": "Email and password are required"}), 400
 
+    if password.isspace():
+        return jsonify({"error": "Password can't contain only whitespace"}), 400
+
+    if len(password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters long"}), 400
+    
+    if len(password) > 64:
+        return jsonify({"error": "Password is too long."}), 400
+
     # Validate UCLA email domain
     if not (email.endswith("@ucla.edu") or email.endswith("@g.ucla.edu")):
         return jsonify({"error": "Email must be a valid @ucla.edu or @g.ucla.edu domain"}), 400
@@ -31,8 +41,12 @@ def register():
 
     # Create and save the new user
     new_user = User(email=email, password_hash=hashed_password)
-    db.session.add(new_user)
-    db.session.commit()
+    try:
+        db.session.add(new_user)
+        db.session.commit()
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"error": "Database error. Please try again."}), 500
 
     return jsonify({"message": "User registered successfully"}), 201
 

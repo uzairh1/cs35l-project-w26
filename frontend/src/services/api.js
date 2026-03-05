@@ -1,4 +1,5 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5173/api";
+// const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_URL = "http://127.0.0.1:5000/api";
 
 export async function getHealth() {
   try {
@@ -11,29 +12,37 @@ export async function getHealth() {
 
 // function to register the user
 export async function registerUser(data) {
-  const res = await fetch(`${API_URL}/register`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    // hopefully data looks like: { email: "...", password: "..." }
-    body: JSON.stringify(data),
-  });
+  try {
+    const res = await fetch(`${API_URL}/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      // hopefully data looks like: { email: "...", password: "..." }
+      body: JSON.stringify(data),
+    });
 
-  return res.json();
+    return res.json();
+  } catch {
+    return { error: "Network error. Please try again." };
+  }
 }
 
 // like registerUser, but for logging in the user
 export async function loginUser(data) {
-  const res = await fetch(`${API_URL}/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
-  });
+  try {
+    const res = await fetch(`${API_URL}/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
 
-  return res.json();
+    return res.json();
+  } catch {
+    return { error: "Network error. Please try again." };
+  }
 }
 
 export async function fetchSyllabi(filters = {}) {
@@ -45,7 +54,7 @@ export async function fetchSyllabi(filters = {}) {
     );
     
     const queryString = new URLSearchParams(cleanFilters).toString();
-    const endpoint = queryString ? `${API_URL}/api/syllabi?${queryString}` : `${API_URL}/api/syllabi`; // Yo frontend -- delete the first api from both parts in this line, should work then!
+    const endpoint = queryString ? `${API_URL}/syllabi?${queryString}` : `${API_URL}/syllabi`; // Yo frontend -- delete the first api from both parts in this line, should work then!
 
     const response = await fetch(endpoint);
     const data = await response.json();

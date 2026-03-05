@@ -8,7 +8,7 @@ const Browse = () => {
 
   // all filters are one state object
   const [filters, setFilters] = useState({
-    professor: '',
+    professor_last_name: '',
     course_number: '',
     department: '',
     quarter: '',
@@ -52,7 +52,7 @@ const Browse = () => {
       <div className="filters-section" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' }}>
         <input type="text" name="department" placeholder="Dept (e.g. COM SCI)" value={filters.department} onChange={handleFilterChange} />
         <input type="text" name="course_number" placeholder="Course # (e.g. 35L)" value={filters.course_number} onChange={handleFilterChange} />
-        <input type="text" name="professor" placeholder="Professor Name" value={filters.professor} onChange={handleFilterChange} />
+        <input type="text" name="professor_last_name" placeholder="Professor Last Name" value={filters.professor_last_name} onChange={handleFilterChange} />
         
         <select name="quarter" value={filters.quarter} onChange={handleFilterChange}>
           <option value="">All Quarters</option>
@@ -79,17 +79,31 @@ const Browse = () => {
       )}
 
       <div className="syllabi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px' }}>
-        {!loading && syllabi.map((syllabus) => (
+        {/* {!loading && syllabi.map((syllabus) => (
           <div key={syllabus.id} className="syllabus-card" style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px' }}>
-            <h3>{syllabus.department} {syllabus.course_number}</h3>
-            <p><strong>Title:</strong> {syllabus.course_title}</p>
-            <p><strong>Professor:</strong> {syllabus.professor_first_name} {syllabus.professor_last_name}</p>
+            <h3>{syllabus.course.department} {syllabus.course.course_number}</h3>
+            <p><strong>Title:</strong> {syllabus.course.course_title}</p>
+            <p><strong>Professor:</strong> {syllabus.course.professor_first_name} {syllabus.course.professor_last_name}</p>
             <p><strong>Term:</strong> {syllabus.quarter} {syllabus.year}</p>
             <p><strong>Downloads:</strong> {syllabus.download_count}</p>
 
             <button disabled>Download PDF</button> 
           </div>
-        ))}
+        ))} */}
+        {!loading && syllabi.map((syllabus) => {
+          console.log(syllabus);
+          return (
+            <div key={syllabus.id} className="syllabus-card" style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px' }}>
+              <h3>{syllabus.course.department} {syllabus.course.course_number}</h3>
+              <p><strong>Title:</strong> {syllabus.course.course_title}</p>
+              <p><strong>Professor:</strong> {syllabus.course.professor_first_name} {syllabus.course.professor_last_name}</p>
+              <p><strong>Term:</strong> {syllabus.quarter} {syllabus.year}</p>
+              <p><strong>Downloads:</strong> {syllabus.download_count}</p>
+
+              <button disabled>Download PDF</button> 
+            </div>
+          );
+        })}
       </div>
     </div>
   );

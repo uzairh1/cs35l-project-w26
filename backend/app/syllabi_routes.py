@@ -8,7 +8,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 
-from backend.models import syllabus
+from models import syllabus
 from models.syllabus import Syllabus
 from models.course import Course
 from models.user import User

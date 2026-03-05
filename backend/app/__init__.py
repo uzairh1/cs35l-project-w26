@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from dotenv import load_dotenv
 import os
 
@@ -11,6 +11,7 @@ from models.syllabus import Syllabus
 from models.grades import Grade
 from models.favorite import Favorite
 from flask_migrate import Migrate
+from flask_cors import CORS
 from app.auth import auth
 from app.syllabi_routes import syllabi_api
 from app.grade_routes import grade_api
@@ -20,6 +21,11 @@ from app.config import Config
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    
+    CORS(
+        app, 
+        resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}},
+    )
 
     os.makedirs(app.config["UPLOADS_FOLDER"], exist_ok=True)
 
@@ -29,5 +35,9 @@ def create_app():
     app.register_blueprint(syllabi_api)
     app.register_blueprint(grade_api)
     app.register_blueprint(auth)
+
+    @app.errorhandler(500)
+    def handle_uncaught_errors(e):
+        return jsonify({"error": "Internal server error"}), 500
 
     return app
