@@ -1,35 +1,43 @@
 import { useState, useEffect } from 'react';
-import { getHealth } from '/src/services/api.js';
-
+import { Link } from 'react-router-dom';
+import { getHealth } from '../services/api.js'; 
 
 function HealthData() {
   const [health, setHealth] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
-    fetch("/v1/projects/{ref}/health")
-    .then(response => response.json())
-    .then(jsonData => setHealth(jsonData));
+    async function checkBackend() {
+      const data = await getHealth();
+      setHealth(data);
+      setIsLoading(false); 
+    }
+    
+    checkBackend();
   }, []);
 
-
-  if (isLoading) return <div>Loading...</div>;
-
+  if (isLoading) return <div>Checking connection to backend...</div>;
 
   return (
-    <ul>
-      {health.items.map(item => (
-        <li key={item.id}>{item.name}</li>
-      ))}
-    </ul>
+    <div>
+      <p>Backend Status: <strong>{health?.status || "Offline"}</strong></p>
+    </div>
   );
 }
 
-
 export default function Home() {
   return (
-    <div>
-      <h1>Home Page</h1>
-      <HealthData/>
+    <div className="browse-container"> {}
+      <div className="home-hero">
+        <h1>hai, welcome!</h1>
+        <p>feel free to navigate UCLA syllabi and contribute to our database</p>
+        
+        <Link to="/browse" className="cta-button">Start Browsing</Link>
+        
+        <div style={{ marginTop: '50px' }}>
+          <HealthData />
+        </div>
+      </div>
     </div>
   );
 }

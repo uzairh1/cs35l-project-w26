@@ -67,12 +67,17 @@ const Browse = () => {
         <select name="sort" value={filters.sort} onChange={handleFilterChange}>
           <option value="newest">Newest First</option>
           <option value="oldest">Oldest First</option>
-          <option value="most_downloaded">Most Downloaded</option>
-          <option value="least_downloaded">Least Downloaded</option>
+          <option value="downloads_desc">Most Downloaded</option>
+          <option value="downloads_asc">Least Downloaded</option>
         </select>
       </div>
 
-      {loading && <p>Loading syllabi...</p>}
+      {loading && (
+        <div className="syllabi-grid">
+          {[1, 2, 3].map(n => <div key={n} className="skeleton-card" />)}
+        </div>
+      )}
+      
       {error && <p style={{ color: 'maroon' }}>{error}</p>}
       {!loading && !error && syllabi.length === 0 && (
         <p>Hmm no syllabi found. Try adjusting your search!</p>
