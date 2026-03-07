@@ -10,6 +10,8 @@ from sqlalchemy import func
 
 from models.syllabus import Syllabus
 from models.course import Course
+from models.user import User
+from models.favorite import Favorite
 from models.base import db
 
 import hashlib
@@ -188,3 +190,80 @@ def upload_pdf():
         , "stored_filename": filename,
         "syllabus_id": new_syllabus.id}
         ), 201
+
+# POST /api/syllabi/<id>/favorite
+@syllabi_api.route("/api/syllabi/<int:syllabus_id>/favorite", methods=["POST"])
+@jwt_required
+def favorite_syllabus(syllabus_id):
+    user_id = getattr(request, "user", None)
+    if not user_id:
+        return jsonify({"error": "Unauthenticated"}), 401
+
+    syllabus = Syllabus.query.get(syllabus_id)
+    if not syllabus:
+        return jsonify({"error": "Syllabus not found"}), 404
+
+    # Try to insert favorite; honor unique constraint to avoid duplicates
+    fav = Favorite(user_id=user_id, syllabus_id=syllabus_id)
+    db.session.add(fav)
+    try:
+        # Also increment favorite_count atomically
+        syllabus.favorite_count = (syllabus.favorite_count or 0) + 1
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        # already favorited by this user
+        return jsonify({"message": "Already favorited"}), 200
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception("Failed to favorite")
+        return jsonify({"error": "Failed to favorite"}), 500
+
+    return jsonify({"message": "Favorited", "syllabus_id": syllabus_id, "favorite_count": syllabus.favorite_count}), 201
+
+
+# DELETE /api/syllabi/<id>/favorite
+@syllabi_api.route("/api/syllabi/<int:syllabus_id>/favorite", methods=["DELETE"])
+@jwt_required
+def unfavorite_syllabus(syllabus_id):
+    user_id = getattr(request, "user", None)
+    if not user_id:
+        return jsonify({"error": "Unauthenticated"}), 401
+
+    fav = Favorite.query.filter_by(user_id=user_id, syllabus_id=syllabus_id).first()
+    if not fav:
+        return jsonify({"message": "Not favorited"}), 200
+
+    syllabus = Syllabus.query.get(syllabus_id)
+    try:
+        db.session.delete(fav)
+        # decrement count safely but not below zero
+        if syllabus:
+            syllabus.favorite_count = max((syllabus.favorite_count or 0) - 1, 0)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Failed to unfavorite")
+        return jsonify({"error": "Failed to unfavorite"}), 500
+
+    return jsonify({"message": "Unfavorited", "syllabus_id": syllabus_id, "favorite_count": syllabus.favorite_count if syllabus else None}), 200
+
+
+# GET /api/favorites - list current user's favorites (serialized)
+@syllabi_api.route("/api/favorites", methods=["GET"])
+@jwt_required
+def get_my_favorites():
+    user_id = getattr(request, "user", None)
+    if not user_id:
+        return jsonify({"error": "Unauthenticated"}), 401
+
+    favs = (
+        Favorite.query
+        .filter_by(user_id=user_id)
+        .join(Syllabus, Favorite.syllabus_id == Syllabus.id)
+        .options(joinedload(Favorite.syllabus).joinedload(Syllabus.course))
+        .all()
+    )
+
+    syllabi = [serialize_syllabus(f.syllabus) for f in favs if f.syllabus is not None]
+    return jsonify(syllabi), 200
