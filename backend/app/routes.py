@@ -8,14 +8,13 @@ from models.syllabus import Syllabus
 from models.course import Course
 from models.grades import Grade
 from models.base import db
+from app.serializers import serialize_syllabus
+from app.constants import VALID_QUARTERS, VALID_SORT_OPTIONS 
 import hashlib
 import os
 
 
 api = Blueprint("api", __name__)
-
-VALID_QUARTERS = {"Fall", "Winter", "Spring", "Summer"}
-VALID_SORT_OPTIONS = {"newest", "oldest", "downloads_desc", "downloads_asc"}
 
 
 @api.route("/api/health")
@@ -87,28 +86,20 @@ def get_syllabi():
     except Exception:
         return jsonify({"error": "Failed to retrieve syllabi"}), 500
 
-    results = []
-    for s in syllabi:
-        results.append({
-            "id": s.id,
-            "quarter": s.quarter,
-            "year": s.year,
-            "download_count": s.download_count,
-            "favorite_count": s.favorite_count,
-            "created_at": s.created_at.isoformat(),
-            "course": {
-                "id": s.course_id,
-                "department": s.course.department,
-                "course_number": s.course.course_number,
-                "course_title": s.course.course_title,
-                "professor_first_name": s.course.professor_first_name,
-                "professor_last_name": s.course.professor_last_name,
-            },
-            "uploader": None if not s.uploader else {
-                "id": s.uploader_id,
-                "email": s.uploader.email,
-            }
-        })
+        # --- Apply sorting ---
+    if sort == "newest":
+        query = query.order_by(Syllabus.created_at.desc())
+    elif sort == "oldest":
+        query = query.order_by(Syllabus.created_at.asc())
+    elif sort == "downloads_desc":
+        query = query.order_by(Syllabus.download_count.desc())
+    elif sort == "downloads_asc":
+        query = query.order_by(Syllabus.download_count.asc())
+
+    syllabi = query.all()
+
+    # --- Serialize results ---
+    results = [serialize_syllabus(s) for s in syllabi]
 
     return jsonify(results), 200
 
@@ -125,28 +116,7 @@ def get_syllabus(syllabus_id):
     if not syllabus:
         return jsonify({"error": "Syllabus not found"}), 404
 
-    response = {
-        "id": syllabus.id,
-        "quarter": syllabus.quarter,
-        "year": syllabus.year,
-        "download_count": syllabus.download_count,
-        "favorite_count": syllabus.favorite_count,
-        "created_at": syllabus.created_at.isoformat(),
-        "course": {
-            "id": syllabus.course_id,
-            "department": syllabus.course.department,
-            "course_number": syllabus.course.course_number,
-            "course_title": syllabus.course.course_title,
-            "professor_first_name": syllabus.course.professor_first_name,
-            "professor_last_name": syllabus.course.professor_last_name,
-        },
-        "uploader": None if not syllabus.uploader else {
-            "id": syllabus.uploader_id,
-            "email": syllabus.uploader.email
-        }
-    }
-
-    return jsonify(response), 200
+    return jsonify(serialize_syllabus(syllabus)), 200
 
 
 @api.route("/api/syllabi/<int:syllabus_id>/download", methods=["GET"])
