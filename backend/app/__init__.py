@@ -9,9 +9,11 @@ from models.user import User
 from models.course import Course
 from models.syllabus import Syllabus
 from models.grades import Grade
+from models.favorite import Favorite
 from flask_migrate import Migrate
-from app.routes import api
 from app.auth import auth
+from app.syllabi_routes import syllabi_api
+from app.grade_routes import grade_api
 from app.config import Config
 
 
@@ -24,7 +26,8 @@ def create_app():
     db.init_app(app)
     Migrate(app, db)
 
-    app.register_blueprint(api)
+    app.register_blueprint(syllabi_api)
+    app.register_blueprint(grade_api)
     app.register_blueprint(auth)
 
     return app

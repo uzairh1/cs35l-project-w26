@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { registerUser } from "../services/api";
 
 export default function Register() {
@@ -7,7 +8,6 @@ export default function Register() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // regex for ucla email validation
   const uclaRegex = /^[^\s@]+@(ucla\.edu|g\.ucla\.edu)$/;
 
   async function handleSubmit(e) {
@@ -16,7 +16,7 @@ export default function Register() {
     setSuccess("");
 
     if (!uclaRegex.test(email)) {
-      setError("Must use UCLA email (@ucla.edu or @g.ucla.edu)");
+      setError("Please use a valid @ucla.edu or @g.ucla.edu email");
       return;
     }
 
@@ -26,23 +26,27 @@ export default function Register() {
       if (response.error) {
         setError(response.error);
       } else {
-        setSuccess("Registration successful!");
+        setSuccess("Registration successful! You can now log in.");
+        setEmail("");
+        setPassword("");
       }
     } catch {
-      setError("Something went wrong");
+      setError("Something went wrong. Is the backend running?");
     }
   }
 
   return (
-    <div>
-      <h1>Register</h1>
+    <div className="auth-container">
+      <h2>Create Account</h2>
+      <p style={{ color: "#666", marginBottom: "20px" }}>Join to access our syllabi</p>
 
-      <form onSubmit={handleSubmit}>
+      <form className="auth-form" onSubmit={handleSubmit}>
         <input
           type="email"
           placeholder="UCLA Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          required
         />
 
         <input
@@ -50,13 +54,21 @@ export default function Register() {
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          required
         />
 
-        <button type="submit">Register</button>
+        <button className="auth-button" type="submit">Register</button>
       </form>
 
-      {error && <p>{error}</p>}
-      {success && <p>{success}</p>}
+      {error && <p style={{ color: "maroon", marginTop: "15px" }}>{error}</p>}
+      {success && <p style={{ color: "green", marginTop: "15px" }}>{success}</p>}
+
+      <p style={{ marginTop: "25px", fontSize: "0.9rem", color: "#666" }}>
+        Already have an account?{" "}
+        <Link to="/login" style={{ color: "#2774AE", fontWeight: "600", textDecoration: "none" }}>
+          Login here
+        </Link>
+      </p>
     </div>
   );
 }
