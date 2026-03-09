@@ -29,7 +29,7 @@ def register():
 
     # Validate UCLA email domain
     if not (email.endswith("@ucla.edu") or email.endswith("@g.ucla.edu")):
-        return jsonify({"error": "Email must be a valid @ucla.edu or @g.ucla.edu domain"}), 400
+        return jsonify({"error": "Must provide @ucla.edu email"}), 400
 
     # Check for existing user
     existing_user = User.query.filter_by(email=email).first()
@@ -59,6 +59,9 @@ def login():
 
     if not email or not password:
         return jsonify({"error": "Email and password are required"}), 400
+
+    if not (email.endswith("@ucla.edu") or email.endswith("@g.ucla.edu")):
+        return jsonify({"error": "Must provide @ucla.edu email"}), 400
 
     # Retrieve user from the database
     user = User.query.filter_by(email=email).first()

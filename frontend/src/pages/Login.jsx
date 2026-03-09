@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { loginUser } from "../services/api";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const navigate = useNavigate();
   const [error, setError] = useState("");
 
   async function handleSubmit(e) {
@@ -17,7 +18,7 @@ export default function Login() {
       if (response.error) {
         setError(response.error);
       } else {
-        console.log("Logged in!", response);
+        navigate("/browse");
       }
     } catch {
       setError("Login failed. Please check your connection.");

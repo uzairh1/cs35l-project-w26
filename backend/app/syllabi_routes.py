@@ -13,6 +13,7 @@ from models.syllabus import Syllabus
 from models.course import Course
 from models.user import User
 from models.favorite import Favorite
+from models.grades import Grade
 from models.base import db
 
 import hashlib
@@ -25,6 +26,21 @@ syllabi_api = Blueprint("syllabi_api", __name__)
 @syllabi_api.route("/api/health")
 def health():
     return {"status": "ok"}
+
+@syllabi_api.route("/api/courses", methods=["GET"])
+def get_courses():
+    courses = Course.query.all()
+    return jsonify([
+        {
+            "id": c.id,
+            "department": c.department,
+            "course_number": c.course_number,
+            "course_title": c.course_title,
+            "professor_first_name": c.professor_first_name,
+            "professor_last_name": c.professor_last_name,
+        }
+        for c in courses
+    ]), 200
 
 
 @syllabi_api.route("/api/syllabi", methods=["GET"])
@@ -115,8 +131,38 @@ def get_syllabus(syllabus_id):
     
     return jsonify(serialize_syllabus(syllabus)), 200
 
-@syllabi_api.route("/api/upload", methods=["POST"])
+@syllabi_api.route("/api/syllabi/<int:syllabus_id>/download", methods=["GET"])
+def download_syllabus(syllabus_id):
+    # 1. Check syllabus exists
+    syllabus = Syllabus.query.filter_by(id=syllabus_id).first()
+    if not syllabus:
+        return jsonify({"error": "Syllabus not found"}), 404
 
+    # 2. Build the full path and check the file actually exists on disk
+    upload_folder = current_app.config["UPLOADS_FOLDER"]
+    file_path = os.path.join(upload_folder, syllabus.file_path)
+
+    if not os.path.exists(file_path):
+        return jsonify({"error": "File not found on server"}), 404
+
+    # 3. Increment download count and commit BEFORE sending,
+    #    but only persist if no exception occurs
+    try:
+        syllabus.download_count += 1
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "Failed to update download count"}), 500
+
+    # 4. Serve the file
+    return send_file(
+        file_path,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"syllabus_{syllabus_id}.pdf"
+    )
+
+@syllabi_api.route("/api/upload", methods=["POST"])
 @jwt_required
 def upload_pdf():
     if "file" not in request.files:
@@ -125,24 +171,78 @@ def upload_pdf():
     file = request.files["file"]
 
     course_id = request.form.get("course_id")
+    department = (request.form.get("department") or "").strip()
+    course_number = (request.form.get("course_number") or "").strip()
+    course_title = (request.form.get("course_title") or "").strip()
+    professor_first_name = (request.form.get("professor_first_name") or "").strip()
+    professor_last_name = (request.form.get("professor_last_name") or "").strip()
     quarter = request.form.get("quarter")
     year = request.form.get("year")
+    grade = request.form.get("grade")
 
-    if not course_id or not quarter or not year:
+    if not quarter or not year:
         return jsonify({"error": "Missing required fields"}), 400
 
-    # Validate numeric fields
-    try:
-        course_id = int(course_id)
-    except (ValueError, TypeError):
-        return jsonify({"error": "course_id must be an integer"}), 400
+    if course_id:
+        try:
+            course_id = int(course_id)
+        except (ValueError, TypeError):
+            return jsonify({"error": "course_id must be an integer"}), 400
 
     try:
         year = int(year)
     except (ValueError, TypeError):
         return jsonify({"error": "year must be an integer"}), 400
+
+    grade_val = None
+    if grade is not None and str(grade).strip() != "":
+        try:
+            grade_val = float(grade)
+        except (ValueError, TypeError):
+            return jsonify({"error": "grade must be a number"}), 400
+        if not (0.0 <= grade_val <= 4.0):
+            return jsonify({"error": "grade must be between 0.0 and 4.0"}), 400
     
-    course = Course.query.get(course_id)
+    if course_id:
+        course = Course.query.get(course_id)
+    else:
+        # Support upload flow that sends course metadata instead of course_id.
+        if not all([
+            department,
+            course_number,
+            course_title,
+            professor_first_name,
+            professor_last_name,
+        ]):
+            return jsonify({
+                "error": "Provide course_id or complete course fields"
+            }), 400
+
+        course = Course.query.filter_by(
+            department=department,
+            course_number=course_number,
+            course_title=course_title,
+            professor_first_name=professor_first_name,
+            professor_last_name=professor_last_name,
+        ).first()
+
+        if not course:
+            course = Course(
+                department=department,
+                course_number=course_number,
+                course_title=course_title,
+                professor_first_name=professor_first_name,
+                professor_last_name=professor_last_name,
+            )
+            try:
+                db.session.add(course)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+                return jsonify({"error": "Failed to create course"}), 500
+
+        course_id = course.id
+
     if not course:
         return jsonify({"error": "Course not found"}), 400
     
@@ -183,6 +283,15 @@ def upload_pdf():
     )
 
     db.session.add(new_syllabus)
+
+    # Optional: submit/update grade during upload so grade distribution updates.
+    if grade_val is not None:
+        existing_grade = Grade.query.filter_by(user_id=user.id, course_id=int(course_id)).first()
+        if existing_grade:
+            existing_grade.grade = grade_val
+        else:
+            db.session.add(Grade(user_id=user.id, course_id=int(course_id), grade=grade_val))
+
     db.session.commit()
 
     return jsonify(
@@ -268,6 +377,143 @@ def get_my_favorites():
 
     syllabi = [serialize_syllabus(f.syllabus) for f in favs if f.syllabus is not None]
     return jsonify(syllabi), 200
+
+@syllabi_api.route("/api/my-syllabi", methods=["GET"])
+@jwt_required
+def get_my_syllabi():
+    user_id = getattr(request, "user", None)
+    if not user_id:
+        return jsonify({"error": "Unauthenticated"}), 401
+
+    mine = (
+        Syllabus.query
+        .filter_by(uploader_id=user_id)
+        .options(joinedload(Syllabus.course), joinedload(Syllabus.uploader))
+        .order_by(Syllabus.created_at.desc())
+        .all()
+    )
+    return jsonify([serialize_syllabus(s) for s in mine]), 200
+
+@syllabi_api.route("/api/syllabi/<int:syllabus_id>", methods=["PATCH"])
+@jwt_required
+def update_syllabus(syllabus_id):
+    user_id = getattr(request, "user", None)
+    if not user_id:
+        return jsonify({"error": "Unauthenticated"}), 401
+
+    syllabus = Syllabus.query.get(syllabus_id)
+    if not syllabus:
+        return jsonify({"error": "Syllabus not found"}), 404
+
+    if syllabus.uploader_id != user_id:
+        return jsonify({"error": "You are not authorized to edit this syllabus"}), 403
+
+    department = (request.form.get("department") or "").strip()
+    course_number = (request.form.get("course_number") or "").strip()
+    course_title = (request.form.get("course_title") or "").strip()
+    professor_first_name = (request.form.get("professor_first_name") or "").strip()
+    professor_last_name = (request.form.get("professor_last_name") or "").strip()
+    quarter = (request.form.get("quarter") or "").strip()
+    year = request.form.get("year")
+    new_file = request.files.get("file")
+
+    if not all([
+        department,
+        course_number,
+        course_title,
+        professor_first_name,
+        professor_last_name,
+        quarter,
+        year,
+    ]):
+        return jsonify({"error": "Missing required fields"}), 400
+
+    try:
+        year = int(year)
+    except (ValueError, TypeError):
+        return jsonify({"error": "year must be an integer"}), 400
+
+    target_course = Course.query.filter_by(
+        department=department,
+        course_number=course_number,
+        course_title=course_title,
+        professor_first_name=professor_first_name,
+        professor_last_name=professor_last_name,
+    ).first()
+
+    if not target_course:
+        target_course = Course(
+            department=department,
+            course_number=course_number,
+            course_title=course_title,
+            professor_first_name=professor_first_name,
+            professor_last_name=professor_last_name,
+        )
+        db.session.add(target_course)
+        db.session.flush()
+
+    old_file_path = os.path.join(current_app.config["UPLOADS_FOLDER"], syllabus.file_path)
+    new_filename = syllabus.file_path
+    new_file_hash = syllabus.file_hash
+
+    if new_file:
+        file_bytes = new_file.read()
+        new_file_hash = hashlib.sha256(file_bytes).hexdigest()
+        new_file.seek(0)
+        try:
+            new_filename = save_pdf(new_file)
+        except ValueError as e:
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 400
+        except Exception:
+            db.session.rollback()
+            return jsonify({"error": "Upload failed"}), 500
+
+    dup = (
+        Syllabus.query
+        .filter(
+            Syllabus.id != syllabus_id,
+            Syllabus.file_hash == new_file_hash,
+            Syllabus.course_id == target_course.id,
+            Syllabus.quarter == quarter,
+            Syllabus.year == year,
+        )
+        .first()
+    )
+    if dup:
+        db.session.rollback()
+        return jsonify({
+            "error": "Duplicate upload detected",
+            "message": "A syllabus with identical content already exists",
+            "existing_syllabus_id": dup.id
+        }), 409
+
+    syllabus.course_id = target_course.id
+    syllabus.quarter = quarter
+    syllabus.year = year
+    syllabus.file_path = new_filename
+    syllabus.file_hash = new_file_hash
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "Failed to update syllabus"}), 500
+
+    if new_file and old_file_path != os.path.join(current_app.config["UPLOADS_FOLDER"], new_filename):
+        if os.path.exists(old_file_path):
+            try:
+                os.remove(old_file_path)
+            except OSError:
+                current_app.logger.warning("Failed to remove old file: %s", old_file_path)
+
+    syllabus = (
+        Syllabus.query
+        .options(joinedload(Syllabus.course), joinedload(Syllabus.uploader))
+        .filter_by(id=syllabus_id)
+        .first()
+    )
+    return jsonify(serialize_syllabus(syllabus)), 200
 
 @syllabi_api.route("/api/syllabi/<int:syllabus_id>", methods=["DELETE"])
 @jwt_required
