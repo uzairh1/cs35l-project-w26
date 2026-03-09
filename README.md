@@ -119,7 +119,7 @@ python -m venv venv
 # Windows (PowerShell)
 .\venv\Scripts\Activate.ps1
 # macOS/Linux
-# source venv/bin/activate
+source venv/bin/activate
 
 pip install -r requirements.txt
 ```
@@ -208,7 +208,7 @@ Base URL: `/api`
 ### Favorites and Customization (must be logged in)
 
 - Go to `My Uploads` to edit records of syllabi you've uploaded.
-- Go to `Favorites ` to view a list of your favorite syllabi. 
+- Go to `Favorites` to view a list of your favorite syllabi. 
 
 ## Troubleshooting
 
