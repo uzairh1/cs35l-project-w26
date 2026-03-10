@@ -236,7 +236,6 @@ See code in `backend/models/` and migrations in `backend/migrations/versions/`.
 
 ## Contributors
 - Saamiyah Ali
-- Sofia Covarrubias
 - Prabhav Rao
 - Uzair Hammad
 - Helin (Eric) Wang
