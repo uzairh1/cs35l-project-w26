@@ -59,6 +59,23 @@ def submit_grade():
             return jsonify({"error": "Grade submission failed (conflict)"}), 409
         return jsonify({"message": "Grade submitted successfully", "grade_id": new_grade.id}), 201
     
+@grade_api.route("/api/courses/<int:course_id>/my-grade", methods=["GET"])
+@jwt_required
+def get_my_grade(course_id):
+    user_id = getattr(request, "user", None)
+    if not user_id:
+        return jsonify({"error": "Unauthenticated"}), 401
+
+    course = Course.query.get(course_id)
+    if not course:
+        return jsonify({"error": "Course not found"}), 404
+
+    grade = Grade.query.filter_by(user_id=user_id, course_id=course_id).first()
+    return jsonify({
+        "course_id": course_id,
+        "grade": grade.grade if grade else None,
+    }), 200
+
     
 
 @grade_api.route("/api/courses/<int:course_id>/grade-distribution", methods=["GET"])

@@ -16,7 +16,7 @@ export default function Register() {
     setSuccess("");
 
     if (!uclaRegex.test(email)) {
-      setError("Please use a valid @ucla.edu or @g.ucla.edu email");
+      setError("Must provide @ucla.edu email");
       return;
     }
 
@@ -39,6 +39,9 @@ export default function Register() {
     <div className="auth-container">
       <h2>Create Account</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>Join to access our syllabi</p>
+      <p style={{ color: "#666", marginTop: "-10px", marginBottom: "20px" }}>
+        Must provide @ucla.edu email
+      </p>
 
       <form className="auth-form" onSubmit={handleSubmit}>
         <input

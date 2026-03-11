@@ -23,9 +23,13 @@ def create_app():
     app.config.from_object(Config)
     
     CORS(
-        app, 
-        resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}},
-    )
+    app,
+    resources={r"/api/*": {
+        "origins": app.config["CORS_ORIGINS"],
+        "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }},
+)
 
     os.makedirs(app.config["UPLOADS_FOLDER"], exist_ok=True)
 

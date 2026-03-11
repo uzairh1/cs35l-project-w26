@@ -119,7 +119,7 @@ def get_syllabus(syllabus_id):
     return jsonify(serialize_syllabus(syllabus)), 200
 
 
-@api.route("/api/syllabi/<int:syllabus_id>/download", methods=["GET"])
+@api.route("/api/syllabi/<int:syllabus_id>/download", methods=["GET", "OPTIONS"])
 def download_syllabus(syllabus_id):
     # 1. Check syllabus exists
     syllabus = Syllabus.query.filter_by(id=syllabus_id).first()
