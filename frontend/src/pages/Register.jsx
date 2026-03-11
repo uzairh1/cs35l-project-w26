@@ -29,6 +29,7 @@ export default function Register() {
         setSuccess("Registration successful! You can now log in.");
         setEmail("");
         setPassword("");
+        navigate("/login", { replace: true });
       }
     } catch {
       setError("Something went wrong. Is the backend running?");
