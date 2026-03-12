@@ -34,9 +34,6 @@ export default function Home() {
         
         <Link to="/browse" className="cta-button">Start Browsing</Link>
         
-        <div style={{ marginTop: '50px' }}>
-          <HealthData />
-        </div>
       </div>
     </div>
   );
