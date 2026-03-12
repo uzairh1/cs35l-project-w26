@@ -7,7 +7,7 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-
+  
   const uclaRegex = /^[^\s@]+@(ucla\.edu|g\.ucla\.edu)$/;
 
   async function handleSubmit(e) {
@@ -22,18 +22,19 @@ export default function Register() {
 
     try {
       const response = await registerUser({ email, password });
-
+      
       if (response.error) {
         setError(response.error);
-      } else {
-        setSuccess("Registration successful! You can now log in.");
-        setEmail("");
-        setPassword("");
-        navigate("/login", { replace: true });
+        return;
       }
-    } catch {
+
+      setSuccess("Registration successful! You can now log in.");
+      setEmail("");
+      setPassword("");
+    } catch (err) {
       setError("Something went wrong. Is the backend running?");
     }
+    
   }
 
   return (
@@ -44,12 +45,15 @@ export default function Register() {
         Must provide @ucla.edu email
       </p>
 
-      <form className="auth-form" onSubmit={handleSubmit}>
+      <form className="auth-form" onSubmit={handleSubmit} noValidate>
         <input
           type="email"
           placeholder="UCLA Email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setError("");
+          }}
           required
         />
 
@@ -57,7 +61,10 @@ export default function Register() {
           type="password"
           placeholder="Password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setError("");
+          }}
           required
         />
 

@@ -16,12 +16,26 @@ export async function getHealth() {
 }
 
 export async function registerUser(data) {
-  const res = await fetch(`${API_URL}/register`, {
+  try{
+    const res = await fetch(`${API_URL}/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  return res.json();
+
+  const json = await res.json().catch(() => ({
+    error: `Invalid response from server (status ${res.status})`,
+  }));
+
+  if (json.error) {
+    return { error: json.error };
+  }
+  
+  return json;
+
+  } catch (err) {
+    return { error: err.message || "Network error" };
+  }
 }
 
 export async function loginUser(data) {

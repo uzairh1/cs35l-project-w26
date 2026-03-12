@@ -25,14 +25,13 @@ export default function Navbar() {
         {!isLoggedIn && <li><Link to="/register" className="nav-button signup">Register</Link></li>}
         {isLoggedIn && (
           <li>
-            <button
-              key={location.pathname}
+            <Link to={location.pathname}
               onClick={handleLogout}
               className="nav-button"
               style={{ cursor: "pointer" }}
             >
               Logout
-            </button>
+            </Link>
           </li>
         )}
       </ul>
