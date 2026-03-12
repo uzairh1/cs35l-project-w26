@@ -2,8 +2,10 @@ import os
 from sqlalchemy.engine import URL
 
 class Config:
+    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret")
     ENV = os.getenv("FLASK_ENV", "development")
+    SUPABASE_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "syllabi-pdfs")
 
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "jwt-dev-secret")
     JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
@@ -24,7 +26,7 @@ class Config:
         query={"sslmode": "require"},
     )
     
-    UPLOADS_FOLDER = os.path.join(os.getcwd(), "uploads")
+    UPLOADS_FOLDER = os.path.join(BASE_DIR, "uploads")
     MAX_CONTENT_LENGTH = 10 * 1024 * 1024 # 10 MB
 
     CORS_ORIGINS = [

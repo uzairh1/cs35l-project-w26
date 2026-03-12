@@ -55,6 +55,13 @@ Use the templates:
   - Copy the pooler username into `DATABASE_USER`.
   - Copy the pooler password into `DATABASE_PASSWORD`.
   - This app’s config already sets host/port/database/ssl for Supabase pooler, so only user/password are required in `.env`.
+- `SUPABASE_URL`:
+  - Your project URL from the Supabase dashboard.
+- `SUPABASE_SERVICE_KEY`:
+  - Your service role key from `Settings` -> `API`.
+- `SUPABASE_STORAGE_BUCKET`:
+  - Storage bucket for syllabus PDFs.
+  - Create a bucket such as `syllabi-pdfs` before uploading files.
 
 ### Frontend (`frontend/.env`)
 
@@ -135,6 +142,9 @@ JWT_ACCESS_TOKEN_EXPIRES_HOURS=1
 
 DATABASE_USER=your_supabase_pooler_user
 DATABASE_PASSWORD=your_supabase_pooler_password
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your-service-role-key
+SUPABASE_STORAGE_BUCKET=syllabi-pdfs
 ```
 
 Run migrations and start API:

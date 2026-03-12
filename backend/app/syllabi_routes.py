@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, current_app, send_file
-from app.file_utils import save_pdf
+from app.storage_utils import delete_pdf, load_pdf, save_pdf
 from app.jwt_utils import jwt_required
 from app.serializers import serialize_syllabus
 from app.constants import VALID_QUARTERS, VALID_SORT_OPTIONS
@@ -17,7 +17,7 @@ from models.grades import Grade
 from models.base import db
 
 import hashlib
-import os
+import io
 
 syllabi_api = Blueprint("syllabi_api", __name__)
 
@@ -133,20 +133,15 @@ def get_syllabus(syllabus_id):
 
 @syllabi_api.route("/api/syllabi/<int:syllabus_id>/download", methods=["GET"])
 def download_syllabus(syllabus_id):
-    # 1. Check syllabus exists
     syllabus = Syllabus.query.filter_by(id=syllabus_id).first()
     if not syllabus:
         return jsonify({"error": "Syllabus not found"}), 404
 
-    # 2. Build the full path and check the file actually exists on disk
-    upload_folder = current_app.config["UPLOADS_FOLDER"]
-    file_path = os.path.join(upload_folder, syllabus.file_path)
-
-    if not os.path.exists(file_path):
+    try:
+        file_bytes = load_pdf(syllabus.file_path)
+    except FileNotFoundError:
         return jsonify({"error": "File not found on server"}), 404
 
-    # 3. Increment download count and commit BEFORE sending,
-    #    but only persist if no exception occurs
     try:
         syllabus.download_count += 1
         db.session.commit()
@@ -154,9 +149,8 @@ def download_syllabus(syllabus_id):
         db.session.rollback()
         return jsonify({"error": "Failed to update download count"}), 500
 
-    # 4. Serve the file
     return send_file(
-        file_path,
+        io.BytesIO(file_bytes),
         mimetype="application/pdf",
         as_attachment=True,
         download_name=f"syllabus_{syllabus_id}.pdf"
@@ -262,7 +256,10 @@ def upload_pdf():
         filename = save_pdf(file)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
-    except Exception:
+    except Exception as e:
+        current_app.logger.exception("Upload failed while storing syllabus")
+        if current_app.config.get("ENV") == "development":
+            return jsonify({"error": f"Upload failed: {str(e)}"}), 500
         return jsonify({"error": "Upload failed"}), 500
     
     user_id = getattr(request, "user", None)
@@ -284,7 +281,6 @@ def upload_pdf():
 
     db.session.add(new_syllabus)
 
-    # Optional: submit/update grade during upload so grade distribution updates.
     if grade_val is not None:
         existing_grade = Grade.query.filter_by(user_id=user.id, course_id=int(course_id)).first()
         if existing_grade:
@@ -292,7 +288,15 @@ def upload_pdf():
         else:
             db.session.add(Grade(user_id=user.id, course_id=int(course_id), grade=grade_val))
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        try:
+            delete_pdf(filename)
+        except FileNotFoundError:
+            pass
+        return jsonify({"error": "Failed to save syllabus"}), 500
 
     return jsonify(
         {"message": "File uploaded successfully",
@@ -452,7 +456,7 @@ def update_syllabus(syllabus_id):
         db.session.add(target_course)
         db.session.flush()
 
-    old_file_path = os.path.join(current_app.config["UPLOADS_FOLDER"], syllabus.file_path)
+    old_file_path = syllabus.file_path
     new_filename = syllabus.file_path
     new_file_hash = syllabus.file_hash
 
@@ -498,14 +502,18 @@ def update_syllabus(syllabus_id):
         db.session.commit()
     except Exception:
         db.session.rollback()
+        if new_file and new_filename != old_file_path:
+            try:
+                delete_pdf(new_filename)
+            except FileNotFoundError:
+                pass
         return jsonify({"error": "Failed to update syllabus"}), 500
 
-    if new_file and old_file_path != os.path.join(current_app.config["UPLOADS_FOLDER"], new_filename):
-        if os.path.exists(old_file_path):
-            try:
-                os.remove(old_file_path)
-            except OSError:
-                current_app.logger.warning("Failed to remove old file: %s", old_file_path)
+    if new_file and old_file_path != new_filename:
+        try:
+            delete_pdf(old_file_path)
+        except FileNotFoundError:
+            current_app.logger.warning("Failed to remove old file: %s", old_file_path)
 
     syllabus = (
         Syllabus.query
@@ -531,9 +539,10 @@ def delete_syllabus(syllabus_id):
         return jsonify({"error": "You are not authorized to delete this syllabus"}), 403
 
     try:
-        file_path = os.path.join(current_app.config["UPLOADS_FOLDER"], syllabus.file_path)
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        try:
+            delete_pdf(syllabus.file_path)
+        except FileNotFoundError:
+            current_app.logger.warning("Missing file during delete: %s", syllabus.file_path)
         db.session.delete(syllabus)
         db.session.commit()
     except Exception:
